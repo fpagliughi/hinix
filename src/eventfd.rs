@@ -12,7 +12,8 @@ use nix::errno::Errno;
 use Result;
 
 /// The size, in bytes, of the value held by an eventfd.
-/// This is the size of a buffer for reads and writes.
+/// This is the required size of a buffer that is used for reads and writes,
+/// as the value is a u64.
 const EFD_VAL_SIZE: usize = mem::size_of::<u64>();
 
 /// The flags used to create an EventFd
@@ -82,6 +83,13 @@ impl AsRawFd for EventFd {
         self.fd
     }
 }
+
+impl Drop for EventFd {
+    fn drop(&mut self) {
+        let _ = unistd::close(self.fd);
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
