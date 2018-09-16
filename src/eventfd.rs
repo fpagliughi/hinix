@@ -70,7 +70,7 @@ impl EventFd {
                                   EFD_VAL_SIZE)
         };
         if unistd::write(self.fd, &buf)? != EFD_VAL_SIZE {
-            // TODO: Whet Errno to use?
+            // TODO: What Errno to use?
             return Err(nix::Error::Sys(Errno::EIO));
         }
         Ok(())

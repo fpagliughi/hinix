@@ -1,9 +1,15 @@
 [package]
 name = "hinix"
 version = "0.1.0"
-authors = ["fmp <fpagliughi@mindspring.com>"]
+authors = ["fpagliughi <fpagliughi@mindspring.com>"]
+repository = "https://github.com/fpagliughi/hinix"
+license = "MIT"
+categories = ["os::unix-apis"]
+description = """
+High level *nix functionality in Rust.
+"""
 
 [dependencies]
-libc = "0.2"
 nix = "0.11"
-log = "0.4"
+libc = "0.2"
+
