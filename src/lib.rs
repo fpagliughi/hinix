@@ -3,8 +3,8 @@
 //#[macro_use]
 //extern crate log;
 
-extern crate nix;
 extern crate libc;
+extern crate nix;
 
 pub use eventfd::*;
 

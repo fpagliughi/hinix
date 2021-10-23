@@ -1,14 +1,14 @@
 // hinix/src/eventfd.rs
 
 //! Module to manage Linux event objects.
-use std::os::unix::io::{RawFd, AsRawFd};
+use std::os::unix::io::{AsRawFd, RawFd};
 
-use std::{slice, mem};
-use libc::{c_uint};
+use libc::c_uint;
 use nix;
-use nix::unistd;
-use nix::sys::eventfd;
 use nix::errno::Errno;
+use nix::sys::eventfd;
+use nix::unistd;
+use std::{mem, slice};
 use Result;
 
 /// The size, in bytes, of the value held by an eventfd.
@@ -54,9 +54,7 @@ impl EventFd {
             // TODO: Whet Errno to use?
             return Err(nix::Error::Sys(Errno::EIO));
         }
-        let val: u64 = unsafe {
-            *(&buf as *const u8 as *const u64)
-        };
+        let val: u64 = unsafe { *(&buf as *const u8 as *const u64) };
         Ok(val)
     }
 
@@ -65,10 +63,7 @@ impl EventFd {
     /// # Parameters
     /// `val` The value to _add_ to the one held by the object.
     pub fn write(&self, val: u64) -> Result<()> {
-        let buf = unsafe {
-            slice::from_raw_parts(&val as *const u64 as *const u8,
-                                  EFD_VAL_SIZE)
-        };
+        let buf = unsafe { slice::from_raw_parts(&val as *const u64 as *const u8, EFD_VAL_SIZE) };
         if unistd::write(self.fd, &buf)? != EFD_VAL_SIZE {
             // TODO: What Errno to use?
             return Err(nix::Error::Sys(Errno::EIO));
@@ -90,12 +85,11 @@ impl Drop for EventFd {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::io::AsRawFd;
     use nix::Error;
+    use std::os::unix::io::AsRawFd;
 
     #[test]
     fn test_normal() {
@@ -180,8 +174,5 @@ mod tests {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(Error::Sys(Errno::EAGAIN), err),
         }
-
     }
 }
-
-
