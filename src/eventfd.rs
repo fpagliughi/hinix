@@ -1,15 +1,34 @@
 // hinix/src/eventfd.rs
+//
+// This is part of the Rust 'hinix' crate
+//
+// Copyright (c) 2018-2020, Frank Pagliughi
+//
+// Licensed under the MIT license:
+//   <LICENSE or http://opensource.org/licenses/MIT>
+// This file may not be copied, modified, or distributed except according
+// to those terms.
+//
 
 //! Module to manage Linux event objects.
-use std::os::unix::io::{AsRawFd, RawFd};
+//! See:
+//! https://man7.org/linux/man-pages/man2/eventfd.2.html
+//!
 
-use libc::c_uint;
-use nix;
-use nix::errno::Errno;
-use nix::sys::eventfd;
-use nix::unistd;
-use std::{mem, slice};
-use Result;
+use nix::{
+    self,
+    sys::eventfd,
+    unistd,
+};
+use std::{
+    mem,
+    slice,
+    os::{
+        raw::c_uint,
+        unix::io::{AsRawFd, RawFd},
+    },
+};
+use crate::{Error, Result};
 
 /// The size, in bytes, of the value held by an eventfd.
 /// This is the required size of a buffer that is used for reads and writes,
@@ -30,29 +49,60 @@ pub type EfdFlags = eventfd::EfdFlags;
 /// combination with other handles such as from sockets, pipes, etc,
 /// in a poll/epoll/select call to provide additional signaling
 /// capabilities.
+#[derive(Debug)]
 pub struct EventFd {
+    /// The OS file handle for the event.
     fd: RawFd,
 }
 
 impl EventFd {
     /// Create a new event object.
     ///
+    /// This is the default configuration of the event object with no flags.
+    /// When read, the value is returned and the count is reset to zero.
+    ///
+    /// # Parameters
+    ///
+    /// `initval` The initial value held by the object
+    pub fn new(initval: u64) -> Result<EventFd> {
+        Self::with_flags(initval, EfdFlags::empty())
+    }
+
+    /// Create a new event object with the semaphore option.
+    ///
+    /// This is applies the EDF_SEMAPHORE flag. When read, the value
+    /// returned is 1, and the value is decremented by 1.
+    ///
+    /// # Parameters
+    ///
+    /// `initval` The initial value held by the object
+    pub fn new_semaphore(initval: u64) -> Result<EventFd> {
+        Self::with_flags(initval, EfdFlags::EFD_SEMAPHORE)
+    }
+
+    /// Create a new event object with the specified flags.
+    ///
     /// # Parameters
     /// `initval` The initial value held by the object
     /// `flags` The flags used to create the object
     ///
     /// http://man7.org/linux/man-pages/man2/eventfd.2.html
-    pub fn new(initval: c_uint, flags: EfdFlags) -> Result<EventFd> {
-        let fd = eventfd::eventfd(initval, flags)?;
+    pub fn with_flags(initval: u64, flags: EfdFlags) -> Result<EventFd> {
+        let fd = eventfd::eventfd(initval as c_uint, flags)?;
         Ok(EventFd { fd })
     }
 
-    /// Reads the value of the event object
+    /// Try to clone the event object by making a dup() of the OS file handle.
+    pub fn try_clone(&self) -> Result<Self> {
+        let fd = unistd::dup(self.fd)?;
+        Ok(EventFd { fd })
+    }
+
+    /// Reads the value of the event object.
     pub fn read(&self) -> Result<u64> {
         let mut buf: [u8; 8] = [0; EFD_VAL_SIZE];
         if unistd::read(self.fd, &mut buf)? != EFD_VAL_SIZE {
-            // TODO: Whet Errno to use?
-            return Err(nix::Error::Sys(Errno::EIO));
+            return Err(Error::EIO);
         }
         let val: u64 = unsafe { *(&buf as *const u8 as *const u64) };
         Ok(val)
@@ -65,8 +115,7 @@ impl EventFd {
     pub fn write(&self, val: u64) -> Result<()> {
         let buf = unsafe { slice::from_raw_parts(&val as *const u64 as *const u8, EFD_VAL_SIZE) };
         if unistd::write(self.fd, &buf)? != EFD_VAL_SIZE {
-            // TODO: What Errno to use?
-            return Err(nix::Error::Sys(Errno::EIO));
+            return Err(Error::EIO);
         }
         Ok(())
     }
@@ -85,15 +134,17 @@ impl Drop for EventFd {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nix::Error;
+    use crate::Error;
     use std::os::unix::io::AsRawFd;
 
     #[test]
     fn test_normal() {
-        let evtfd = EventFd::new(0, EfdFlags::empty()).unwrap();
+        let evtfd = EventFd::new(0).unwrap();
         assert!(evtfd.as_raw_fd() >= 0);
 
         // Writing a value should get us the same back on a read.
@@ -105,28 +156,34 @@ mod tests {
         evtfd.write(42).unwrap();
         let n = evtfd.read().unwrap();
         assert_eq!(42, n);
+
+        // Multiple writes should sunm the value
+        evtfd.write(5).unwrap();
+        evtfd.write(6).unwrap();
+        let n = evtfd.read().unwrap();
+        assert_eq!(11, n);
     }
 
     #[test]
     fn test_non_blocking() {
-        let evtfd = EventFd::new(0, EfdFlags::EFD_NONBLOCK).unwrap();
+        let evtfd = EventFd::with_flags(0, EfdFlags::EFD_NONBLOCK).unwrap();
         assert!(evtfd.as_raw_fd() >= 0);
 
         // No value in object should get us an EAGAIN error.
         match evtfd.read() {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(Error::Sys(Errno::EAGAIN), err),
+            Err(err) => assert_eq!(Error::EAGAIN, err),
         }
 
         // Writing a value should get us the same back on a read.
-        evtfd.write(1).unwrap();
+        evtfd.write(6).unwrap();
         let n = evtfd.read().unwrap();
-        assert_eq!(1, n);
+        assert_eq!(6, n);
 
         // The read should have cleared the value, so another is an error.
         match evtfd.read() {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(Error::Sys(Errno::EAGAIN), err),
+            Err(err) => assert_eq!(Error::EAGAIN, err),
         }
 
         // Try another value that's not '1'
@@ -137,17 +194,18 @@ mod tests {
 
     #[test]
     fn test_semaphore() {
-        let evtfd = EventFd::new(0, EfdFlags::EFD_SEMAPHORE).unwrap();
+        let evtfd = EventFd::new_semaphore(0).unwrap();
         assert!(evtfd.as_raw_fd() >= 0);
 
-        // Writing a value should get us the same back on a read.
+        // Signal then read back should get us a 1.
         evtfd.write(1).unwrap();
         let n = evtfd.read().unwrap();
         assert_eq!(1, n);
 
-        // Try another value that's not '1'
+        // Try another value that's not 1.
         evtfd.write(2).unwrap();
 
+        // Each read should return 1.
         let n = evtfd.read().unwrap();
         assert_eq!(1, n);
 
@@ -157,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_semaphore_non_blocking() {
-        let evtfd = EventFd::new(0, EfdFlags::EFD_SEMAPHORE | EfdFlags::EFD_NONBLOCK).unwrap();
+        let evtfd = EventFd::with_flags(0, EfdFlags::EFD_SEMAPHORE | EfdFlags::EFD_NONBLOCK).unwrap();
         assert!(evtfd.as_raw_fd() >= 0);
 
         // Try another value that's not '1'
@@ -172,7 +230,7 @@ mod tests {
         // The read should have cleared the value, so another is an error.
         match evtfd.read() {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(Error::Sys(Errno::EAGAIN), err),
+            Err(err) => assert_eq!(Error::EAGAIN, err),
         }
     }
 }
