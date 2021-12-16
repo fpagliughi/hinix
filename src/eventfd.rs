@@ -11,8 +11,9 @@
 //
 
 //! Module to manage Linux event objects.
+//!
 //! See:
-//! https://man7.org/linux/man-pages/man2/eventfd.2.html
+//! <https://man7.org/linux/man-pages/man2/eventfd.2.html>
 //!
 
 use nix::{
@@ -86,7 +87,7 @@ impl EventFd {
     /// `initval` The initial value held by the object
     /// `flags` The flags used to create the object
     ///
-    /// http://man7.org/linux/man-pages/man2/eventfd.2.html
+    /// <http://man7.org/linux/man-pages/man2/eventfd.2.html>
     pub fn with_flags(initval: u64, flags: EfdFlags) -> Result<EventFd> {
         let fd = eventfd::eventfd(initval as c_uint, flags)?;
         Ok(EventFd { fd })
