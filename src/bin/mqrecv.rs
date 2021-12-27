@@ -23,7 +23,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() -> Result<()> {
     let opts = App::new("mqrecv")
         .version(VERSION)
-        .about("Receive messages to a Posix Message Queue")
+        .about("Receive messages from a Posix Message Queue")
         .arg(Arg::with_name("mq_name")
             .help("Name of the message queue")
             .required(true)
