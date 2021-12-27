@@ -35,7 +35,9 @@ pub const DEFAULT_PRIO: u32 = 0;
 // This is necessary since the *nix version doesn't provide access to the
 // components other than the flags, so it's impossible to get the other
 // parameters for an existing queue.
-
+//
+// TODO: Remove all this if nix PR #1619 is merged.
+//  https://github.com/nix-rust/nix/pull/1619
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct MqAttr {
@@ -66,15 +68,15 @@ impl MqAttr {
         self.mq_attr.mq_flags
     }
 
-    pub const fn max_msg(&self) -> mq_attr_member_t {
+    pub const fn maxmsg(&self) -> mq_attr_member_t {
         self.mq_attr.mq_maxmsg
     }
 
-    pub const fn msg_size(&self) -> mq_attr_member_t {
+    pub const fn msgsize(&self) -> mq_attr_member_t {
         self.mq_attr.mq_msgsize
     }
 
-    pub const fn current_msg(&self) -> mq_attr_member_t {
+    pub const fn curmsgs(&self) -> mq_attr_member_t {
         self.mq_attr.mq_curmsgs
     }
 }
@@ -83,9 +85,9 @@ impl From<MqAttr> for mqueue::MqAttr {
     fn from(attr: MqAttr) -> Self {
         mqueue::MqAttr::new(
             attr.flags(),
-            attr.max_msg(),
-            attr.msg_size(),
-            attr.current_msg()
+            attr.maxmsg(),
+            attr.msgsize(),
+            attr.curmsgs()
         )
     }
 }
@@ -139,15 +141,15 @@ impl MsgQueue {
         let attr = mq_getattr(mq)?;
         Ok(Self {
             mq,
-            max_msg: attr.max_msg() as usize,
-            msg_size: attr.msg_size() as usize,
+            max_msg: attr.maxmsg() as usize,
+            msg_size: attr.msgsize() as usize,
         })
     }
 
     /// Create a new message queue for reading and writing with the
     /// specified sizes.
     ///
-    /// Note that Linux enforces limits to these sizes that are enfroced on
+    /// Note that Linux enforces limits to these sizes that are enforced on
     /// normal users. There a number of /proc files that show these limits,
     /// and with proper permissions, allow those limits to be changes. The
     /// files usually live under /proc/sys/fs/mqueue.
@@ -155,6 +157,18 @@ impl MsgQueue {
     /// Typical values might be, msg_max: 10, msgsize_max: 8192.
     pub fn create(name: &str, nmsg: usize, maxsz: usize) -> Result<Self> {
         let flags = MQ_OFlag::O_RDWR | MQ_OFlag::O_CREAT;
+        let mode = Mode::from_bits_truncate(0o660);
+        Self::create_with_flags(name, flags, mode, nmsg, maxsz)
+    }
+
+    /// Create a new message queue for reading and writing with the
+    /// specified sizes, but fail if the queue already exists.
+    ///
+    /// This simplyy adds O_EXCL flag to the creation flags.
+    ///
+    /// Note the size limits as described in create().
+    pub fn create_exclusive(name: &str, nmsg: usize, maxsz: usize) -> Result<Self> {
+        let flags = MQ_OFlag::O_RDWR | MQ_OFlag::O_CREAT | MQ_OFlag::O_EXCL;
         let mode = Mode::from_bits_truncate(0o660);
         Self::create_with_flags(name, flags, mode, nmsg, maxsz)
     }
@@ -262,28 +276,66 @@ impl AsRawFd for MsgQueue {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
     use super::*;
     //use std::os::unix::io::AsRawFd;
 
+    // Be careful that multiple tests are not reading/writing to the same
+    // queue, since tests may be running in parallel.
+
+    const NAME: &str = "/rust_unit_test";
+    const N: usize = 8;
+    const SZ: usize = 512;
+
     #[test]
     fn test_create_open() {
-        const NAME: &str = "/rust_unit_test";
-        const N: usize = 8;
-        const SZ: usize = 512;
-
-        // Create might fail if the queue exists (i.e. re-running tests)
+        // Create should succeed even if the queue exists, so long as the
+        // sizes match (from the last run of the tests
         let mq = MsgQueue::create(NAME, N, SZ).unwrap();
 
         assert_eq!(N, mq.max_msg());
         assert_eq!(SZ, mq.msg_size());
 
+        // Now that it exists, create exclusive should fail
+        assert!(MsgQueue::create_exclusive(NAME, N, SZ).is_err());
+
+        // We should be able to open it.
         let mq = MsgQueue::open(NAME).unwrap();
 
         assert_eq!(N, mq.max_msg());
         assert_eq!(SZ, mq.msg_size());
+    }
+
+    #[test]
+    fn test_read_write() {
+        let mut wr_arr = [0u8; SZ];
+        let mut rd_arr = [0u8; SZ];
+
+        for i in 0..SZ {
+            wr_arr[i] = i as u8;
+        }
+
+        let mq = MsgQueue::create(NAME, N, SZ).unwrap();
+
+        let attr = mq.get_attr().unwrap();
+        let mut n = attr.curmsgs();
+
+        while n != 0 {
+            mq.receive(&mut rd_arr).unwrap();
+            n -= 1;
+        }
+
+        let attr = mq.get_attr().unwrap();
+        assert_eq!(attr.curmsgs(), 0);
+
+        mq.send(&wr_arr).unwrap();
+
+        let n = mq.receive(&mut rd_arr).unwrap();
+        assert_eq!(n, SZ);
+        assert_eq!(rd_arr, wr_arr);
     }
 }
 
