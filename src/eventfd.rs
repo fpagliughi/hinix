@@ -16,20 +16,16 @@
 //! <https://man7.org/linux/man-pages/man2/eventfd.2.html>
 //!
 
-use nix::{
-    self,
-    sys::eventfd,
-    unistd,
-};
+use crate::{Error, Result};
+use nix::{self, sys::eventfd, unistd};
 use std::{
     mem,
-    slice,
     os::{
         raw::c_uint,
         unix::io::{AsRawFd, RawFd},
     },
+    slice,
 };
-use crate::{Error, Result};
 
 /// The size, in bytes, of the value held by an eventfd.
 /// This is the required size of a buffer that is used for reads and writes,
@@ -216,7 +212,8 @@ mod tests {
 
     #[test]
     fn test_semaphore_non_blocking() {
-        let evtfd = EventFd::with_flags(0, EfdFlags::EFD_SEMAPHORE | EfdFlags::EFD_NONBLOCK).unwrap();
+        let evtfd =
+            EventFd::with_flags(0, EfdFlags::EFD_SEMAPHORE | EfdFlags::EFD_NONBLOCK).unwrap();
         assert!(evtfd.as_raw_fd() >= 0);
 
         // Try another value that's not '1'

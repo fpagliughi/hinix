@@ -12,7 +12,8 @@ High level *nix functionality in Rust.
 """
 
 [dependencies]
-nix = "0.23"
+#nix = "0.23"
+nix = { git = "https://github.com/nix-rust/nix" }
 libc = "0.2"
 clap = "2.34"
 

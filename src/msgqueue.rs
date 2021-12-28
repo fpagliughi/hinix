@@ -16,94 +16,21 @@
 //! <https://man7.org/linux/man-pages/man7/mq_overview.7.html>
 //!
 
+use crate::Result;
+use libc::mqd_t;
 use nix::{
     self,
+    mqueue::{self, mq_attr_member_t, MQ_OFlag},
     sys::stat::Mode,
-    mqueue::{self, MQ_OFlag, mq_attr_member_t},
 };
-use std::{
-    os::unix::io::{AsRawFd, RawFd},
-};
-use libc::mqd_t;
 use std::ffi::CString;
-use crate::Result;
+use std::os::unix::io::{AsRawFd, RawFd};
+
+/// Export the MqAttr struct from the nix crate.
+pub use nix::mqueue::MqAttr;
 
 /// The default priority for the Message Queue send operation.
 pub const DEFAULT_PRIO: u32 = 0;
-
-// Note the MqAttr struct is copypasta from the *nix crate.
-// This is necessary since the *nix version doesn't provide access to the
-// components other than the flags, so it's impossible to get the other
-// parameters for an existing queue.
-//
-// TODO: Remove all this if nix PR #1619 is merged.
-//  https://github.com/nix-rust/nix/pull/1619
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct MqAttr {
-    mq_attr: libc::mq_attr,
-}
-
-impl MqAttr {
-    pub fn new(
-        mq_flags: mq_attr_member_t,
-        mq_maxmsg: mq_attr_member_t,
-        mq_msgsize: mq_attr_member_t,
-        mq_curmsgs: mq_attr_member_t
-    ) -> MqAttr
-    {
-        use std::mem;
-        let mut attr = mem::MaybeUninit::<libc::mq_attr>::uninit();
-        unsafe {
-            let p = attr.as_mut_ptr();
-            (*p).mq_flags = mq_flags;
-            (*p).mq_maxmsg = mq_maxmsg;
-            (*p).mq_msgsize = mq_msgsize;
-            (*p).mq_curmsgs = mq_curmsgs;
-            MqAttr { mq_attr: attr.assume_init() }
-        }
-    }
-
-    pub const fn flags(&self) -> mq_attr_member_t {
-        self.mq_attr.mq_flags
-    }
-
-    pub const fn maxmsg(&self) -> mq_attr_member_t {
-        self.mq_attr.mq_maxmsg
-    }
-
-    pub const fn msgsize(&self) -> mq_attr_member_t {
-        self.mq_attr.mq_msgsize
-    }
-
-    pub const fn curmsgs(&self) -> mq_attr_member_t {
-        self.mq_attr.mq_curmsgs
-    }
-}
-
-impl From<MqAttr> for mqueue::MqAttr {
-    fn from(attr: MqAttr) -> Self {
-        mqueue::MqAttr::new(
-            attr.flags(),
-            attr.maxmsg(),
-            attr.msgsize(),
-            attr.curmsgs()
-        )
-    }
-}
-
-/// Get message queue attributes
-fn mq_getattr(mqd: mqd_t) -> Result<MqAttr> {
-    use std::mem;
-    use nix::errno::Errno;
-
-    let mut attr = mem::MaybeUninit::<libc::mq_attr>::uninit();
-    let res = unsafe { libc::mq_getattr(mqd, attr.as_mut_ptr()) };
-    Errno::result(res).map(|_| unsafe{MqAttr { mq_attr: attr.assume_init() }})
-}
-
-// -----
-
 
 /// A Posix Message Queue
 #[derive(Debug)]
@@ -138,7 +65,8 @@ impl MsgQueue {
     pub fn open_with_flags(name: &str, flags: MQ_OFlag) -> Result<Self> {
         let name = CString::new(name).unwrap();
         let mq = mqueue::mq_open(&name, flags, Mode::empty(), None)?;
-        let attr = mq_getattr(mq)?;
+        // TODO: Here for local
+        let attr = mqueue::mq_getattr(mq)?;
         Ok(Self {
             mq,
             max_msg: attr.maxmsg() as usize,
@@ -183,7 +111,7 @@ impl MsgQueue {
         flags: MQ_OFlag,
         mode: Mode,
         max_msg: usize,
-        msg_size: usize
+        msg_size: usize,
     ) -> Result<Self> {
         let name = CString::new(name).unwrap();
         let flags = flags | MQ_OFlag::O_CREAT;
@@ -191,10 +119,14 @@ impl MsgQueue {
             0,
             max_msg as mq_attr_member_t,
             msg_size as mq_attr_member_t,
-            0
+            0,
         );
         let mq = mqueue::mq_open(&name, flags, mode, Some(&attr))?;
-        Ok(Self { mq, max_msg, msg_size })
+        Ok(Self {
+            mq,
+            max_msg,
+            msg_size,
+        })
     }
 
     /// Gets the maximum number of messages that can be held in the queue
@@ -227,7 +159,8 @@ impl MsgQueue {
 
     /// Gets the attributes for the message queue
     pub fn get_attr(&self) -> Result<MqAttr> {
-        mq_getattr(self.mq)
+        // TODO: Here for local
+        mqueue::mq_getattr(self.mq)
     }
 
     /// Sends a message to the queue with the default priority
@@ -338,4 +271,3 @@ mod tests {
         assert_eq!(rd_arr, wr_arr);
     }
 }
-

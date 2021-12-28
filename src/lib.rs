@@ -17,7 +17,7 @@ pub mod eventfd;
 pub use eventfd::*;
 
 pub mod msgqueue;
-pub use msgqueue::{MsgQueue, MqAttr};
+pub use msgqueue::{MqAttr, MsgQueue};
 
 /// Hinix Result type
 /// This is simply a re-export of the nix Result type.
@@ -26,5 +26,3 @@ pub type Result<T> = nix::Result<T>;
 /// Hinix Error type.
 /// This is simply a re-export of the nix Error type.
 pub type Error = nix::Error;
-
-
