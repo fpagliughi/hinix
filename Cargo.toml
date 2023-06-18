@@ -11,8 +11,22 @@ description = """
 High level *nix functionality in Rust.
 """
 
+[features]
+default = []
+utils = ["clap"]
+
 [dependencies]
 nix = "0.26"
 libc = "0.2"
-clap = "2.34"
+clap = { version = "2.34", optional = true }
+
+[[bin]]
+name = "mqrecv"
+required-features = ["utils"]
+
+[[bin]]
+name = "mqsend"
+required-features = ["utils"]
+
+
 

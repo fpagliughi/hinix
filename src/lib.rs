@@ -10,6 +10,18 @@
 // to those terms.
 //
 
+//! The hinix crate.
+//!
+//! Higher-level support for *nix systems.
+//!
+//! # Crate Features
+//!
+//! * **utils** -
+//!   Whether to build command-line utilities. This brings in additional
+//!   dependencies like [anyhow](https://docs.rs/anyhow/latest/anyhow/) and
+//!   [clap](https://docs.rs/clap/latest/clap/)
+//!
+
 // Note that the conditional compilation choices were lifted directly from
 // the nix crate for which OS each underlying, wrapped, type supports.
 

@@ -5,10 +5,14 @@ This sits atop the Rust [nix](https://github.com/nix-rust/nix) crate and provide
 
 Initial versions of this library are mostly concerned with interprocess communications on a single host, with objects that wrap various communicaton and synchronization mechanisms such as event objects, message querues, etc.
 
-### Unreleased Features in this Branch
+## New Features in v0.2.1
 
-- Started Posix Message Queue implementation - `MsgQueue`
+- Posix Message Queues - `MsgQueue`
 - Message queue utility apps, `mqsend` & `mqrecv`
+
+## Minimum Supported Rust Version
+
+The MSRV is Rust Edition 2021, v1.63.0
 
 ## Interprocess Communications
 
