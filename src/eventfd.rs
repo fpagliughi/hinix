@@ -112,7 +112,7 @@ impl EventFd {
     /// `val` The value to _add_ to the one held by the object.
     pub fn write(&self, val: u64) -> Result<()> {
         let buf = unsafe { slice::from_raw_parts(&val as *const u64 as *const u8, EFD_VAL_SIZE) };
-        if unistd::write(self.0.as_raw_fd(), &buf)? != EFD_VAL_SIZE {
+        if unistd::write(self.0.as_raw_fd(), buf)? != EFD_VAL_SIZE {
             return Err(Error::EIO);
         }
         Ok(())
