@@ -20,7 +20,7 @@ use crate::Result;
 use nix::{
     self,
     errno::Errno,
-    mqueue::{self, mq_attr_member_t, MqdT, MQ_OFlag},
+    mqueue::{self, mq_attr_member_t, MQ_OFlag, MqdT},
     sys::stat::Mode,
 };
 use std::ffi::CString;
@@ -146,7 +146,7 @@ impl MsgQueue {
     pub fn set_nonblock(&mut self) -> Result<MqAttr> {
         match self.mq {
             Some(ref mq) => mqueue::mq_set_nonblock(mq),
-            None => Err(Errno::ENOENT)
+            None => Err(Errno::ENOENT),
         }
     }
 
@@ -157,7 +157,7 @@ impl MsgQueue {
     pub fn remove_nonblock(&mut self) -> Result<MqAttr> {
         match self.mq {
             Some(ref mq) => mqueue::mq_remove_nonblock(mq),
-            None => Err(Errno::ENOENT)
+            None => Err(Errno::ENOENT),
         }
     }
 
@@ -166,7 +166,7 @@ impl MsgQueue {
         // TODO: Here for local
         match &self.mq {
             Some(mq) => mqueue::mq_getattr(mq),
-            None => Err(Errno::ENOENT)
+            None => Err(Errno::ENOENT),
         }
     }
 
@@ -179,7 +179,7 @@ impl MsgQueue {
     pub fn send_with_priority(&self, msg: &[u8], prio: u32) -> Result<()> {
         match self.mq {
             Some(ref mq) => mqueue::mq_send(mq, msg, prio),
-            None => Err(Errno::ENOENT)
+            None => Err(Errno::ENOENT),
         }
     }
 
@@ -202,7 +202,7 @@ impl MsgQueue {
     pub fn receive_with_priority(&self, msg: &mut [u8], prio: &mut u32) -> Result<usize> {
         match self.mq {
             Some(ref mq) => mqueue::mq_receive(mq, msg, prio),
-            None => Err(Errno::ENOENT)
+            None => Err(Errno::ENOENT),
         }
     }
 }

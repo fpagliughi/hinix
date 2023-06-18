@@ -22,7 +22,7 @@ use std::{
     mem,
     os::{
         raw::c_uint,
-        unix::io::{AsRawFd, RawFd},
+        unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
     },
     slice,
 };
@@ -47,10 +47,7 @@ pub type EfdFlags = eventfd::EfdFlags;
 /// in a poll/epoll/select call to provide additional signaling
 /// capabilities.
 #[derive(Debug)]
-pub struct EventFd {
-    /// The OS file handle for the event.
-    fd: RawFd,
-}
+pub struct EventFd(OwnedFd);
 
 impl EventFd {
     /// Create a new event object.
@@ -86,19 +83,23 @@ impl EventFd {
     /// <http://man7.org/linux/man-pages/man2/eventfd.2.html>
     pub fn with_flags(initval: u64, flags: EfdFlags) -> Result<EventFd> {
         let fd = eventfd::eventfd(initval as c_uint, flags)?;
-        Ok(EventFd { fd })
+        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
+        Ok(EventFd(fd))
     }
 
     /// Try to clone the event object by making a dup() of the OS file handle.
     pub fn try_clone(&self) -> Result<Self> {
-        let fd = unistd::dup(self.fd)?;
-        Ok(EventFd { fd })
+        let fd = self
+            .0
+            .try_clone()
+            .map_err(|e| Error::try_from(e).unwrap_or_else(|_| Error::from_i32(0)))?;
+        Ok(EventFd(fd))
     }
 
     /// Reads the value of the event object.
     pub fn read(&self) -> Result<u64> {
         let mut buf: [u8; 8] = [0; EFD_VAL_SIZE];
-        if unistd::read(self.fd, &mut buf)? != EFD_VAL_SIZE {
+        if unistd::read(self.0.as_raw_fd(), &mut buf)? != EFD_VAL_SIZE {
             return Err(Error::EIO);
         }
         let val: u64 = unsafe { *(&buf as *const u8 as *const u64) };
@@ -111,33 +112,33 @@ impl EventFd {
     /// `val` The value to _add_ to the one held by the object.
     pub fn write(&self, val: u64) -> Result<()> {
         let buf = unsafe { slice::from_raw_parts(&val as *const u64 as *const u8, EFD_VAL_SIZE) };
-        if unistd::write(self.fd, &buf)? != EFD_VAL_SIZE {
+        if unistd::write(self.0.as_raw_fd(), &buf)? != EFD_VAL_SIZE {
             return Err(Error::EIO);
         }
         Ok(())
     }
 }
 
-impl AsRawFd for EventFd {
+impl AsFd for EventFd {
     /// Gets the raw file handle for the event object.
-    fn as_raw_fd(&self) -> RawFd {
-        self.fd
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.0.as_fd()
     }
 }
 
-impl Drop for EventFd {
-    fn drop(&mut self) {
-        let _ = unistd::close(self.fd);
+impl AsRawFd for EventFd {
+    /// Gets the raw file handle for the event object.
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
     }
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Unit Tests
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Error;
-    use std::os::unix::io::AsRawFd;
 
     #[test]
     fn test_normal() {
