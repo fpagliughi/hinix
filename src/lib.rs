@@ -2,7 +2,7 @@
 
 // This is part of the Rust 'hinix' crate
 //
-// Copyright (c) 2018-2020, Frank Pagliughi
+// Copyright (c) 2018-2023, Frank Pagliughi
 //
 // Licensed under the MIT license:
 //   <LICENSE or http://opensource.org/licenses/MIT>
@@ -10,13 +10,31 @@
 // to those terms.
 //
 
-//#[macro_use]
-//extern crate log;
+// Note that the conditional compilation choices were lifted directly from
+// the nix crate for which OS each underlying, wrapped, type supports.
 
+#[cfg(any(target_os = "android", target_os = "linux"))]
 pub mod eventfd;
+#[cfg(any(target_os = "android", target_os = "linux"))]
 pub use eventfd::*;
 
+/// Re-export nix for any apps that want to ensure the same version
+/// of the underlying library.
+pub use nix;
+
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+))]
 pub mod msgqueue;
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+))]
 pub use msgqueue::{MqAttr, MsgQueue};
 
 /// Hinix Result type

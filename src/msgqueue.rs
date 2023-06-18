@@ -2,7 +2,7 @@
 //
 // This is part of the Rust 'hinix' crate
 //
-// Copyright (c) 2021, Frank Pagliughi
+// Copyright (c) 2021-2023, Frank Pagliughi
 //
 // Licensed under the MIT license:
 //   <LICENSE or http://opensource.org/licenses/MIT>
@@ -17,14 +17,14 @@
 //!
 
 use crate::Result;
-use libc::mqd_t;
 use nix::{
     self,
-    mqueue::{self, mq_attr_member_t, MQ_OFlag},
+    errno::Errno,
+    mqueue::{self, mq_attr_member_t, MqdT, MQ_OFlag},
     sys::stat::Mode,
 };
 use std::ffi::CString;
-use std::os::unix::io::{AsRawFd, RawFd};
+//use std::os::unix::io::{AsRawFd, RawFd};
 
 /// Export the MqAttr struct from the nix crate.
 pub use nix::mqueue::MqAttr;
@@ -36,7 +36,7 @@ pub const DEFAULT_PRIO: u32 = 0;
 #[derive(Debug)]
 pub struct MsgQueue {
     /// The OS file descriptor
-    mq: mqd_t,
+    mq: Option<MqdT>,
     /// Max number of messages
     max_msg: usize,
     /// The size of each message
@@ -66,9 +66,9 @@ impl MsgQueue {
         let name = CString::new(name).unwrap();
         let mq = mqueue::mq_open(&name, flags, Mode::empty(), None)?;
         // TODO: Here for local
-        let attr = mqueue::mq_getattr(mq)?;
+        let attr = mqueue::mq_getattr(&mq)?;
         Ok(Self {
-            mq,
+            mq: Some(mq),
             max_msg: attr.maxmsg() as usize,
             msg_size: attr.msgsize() as usize,
         })
@@ -123,7 +123,7 @@ impl MsgQueue {
         );
         let mq = mqueue::mq_open(&name, flags, mode, Some(&attr))?;
         Ok(Self {
-            mq,
+            mq: Some(mq),
             max_msg,
             msg_size,
         })
@@ -143,24 +143,31 @@ impl MsgQueue {
     ///
     /// This is a convenience function to set the O_NONBLOCK flag on the
     /// queue.
-    pub fn set_nonblock(&mut self) -> Result<()> {
-        mqueue::mq_set_nonblock(self.mq)?;
-        Ok(())
+    pub fn set_nonblock(&mut self) -> Result<MqAttr> {
+        match self.mq {
+            Some(ref mq) => mqueue::mq_set_nonblock(mq),
+            None => Err(Errno::ENOENT)
+        }
     }
 
     /// Removes the queue from non-blocking mode.
     ///
     /// This is a convenience function to clear the O_NONBLOCK flag on the
     /// queue.
-    pub fn remove_nonblock(&mut self) -> Result<()> {
-        mqueue::mq_remove_nonblock(self.mq)?;
-        Ok(())
+    pub fn remove_nonblock(&mut self) -> Result<MqAttr> {
+        match self.mq {
+            Some(ref mq) => mqueue::mq_remove_nonblock(mq),
+            None => Err(Errno::ENOENT)
+        }
     }
 
     /// Gets the attributes for the message queue
     pub fn get_attr(&self) -> Result<MqAttr> {
         // TODO: Here for local
-        mqueue::mq_getattr(self.mq)
+        match &self.mq {
+            Some(mq) => mqueue::mq_getattr(mq),
+            None => Err(Errno::ENOENT)
+        }
     }
 
     /// Sends a message to the queue with the default priority
@@ -170,7 +177,10 @@ impl MsgQueue {
 
     /// Sends a message to the queue
     pub fn send_with_priority(&self, msg: &[u8], prio: u32) -> Result<()> {
-        mqueue::mq_send(self.mq, msg, prio)
+        match self.mq {
+            Some(ref mq) => mqueue::mq_send(mq, msg, prio),
+            None => Err(Errno::ENOENT)
+        }
     }
 
     /// Receive a message
@@ -190,24 +200,30 @@ impl MsgQueue {
 
     /// Receives a message from the queue with priority
     pub fn receive_with_priority(&self, msg: &mut [u8], prio: &mut u32) -> Result<usize> {
-        mqueue::mq_receive(self.mq, msg, prio)
+        match self.mq {
+            Some(ref mq) => mqueue::mq_receive(mq, msg, prio),
+            None => Err(Errno::ENOENT)
+        }
     }
 }
 
 impl Drop for MsgQueue {
     fn drop(&mut self) {
-        if self.mq >= 0 {
-            let _ = mqueue::mq_close(self.mq);
+        if let Some(mq) = self.mq.take() {
+            let _ = mqueue::mq_close(mq);
         }
     }
 }
 
+// TODO: Restore this on platforms that support it (upstream)?
+/*
 impl AsRawFd for MsgQueue {
     /// Gets the raw file handle for the message queue
     fn as_raw_fd(&self) -> RawFd {
         self.mq as RawFd
     }
 }
+*/
 
 /////////////////////////////////////////////////////////////////////////////
 
