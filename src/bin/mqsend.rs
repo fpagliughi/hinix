@@ -13,7 +13,7 @@
 //! This CLI application can send a message to a Posix message queue.
 
 use clap::{App, Arg};
-use hinix::{MsgQueue, Result};
+use hinix::{msgqueue::MsgQueue, Result};
 
 /// The number of messages the queue can hold.
 const N_MSG: usize = 4;

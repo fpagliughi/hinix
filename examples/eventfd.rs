@@ -10,15 +10,19 @@
 // to those terms.
 //
 
-use hinix::eventfd::EventFd;
-use std::{thread, time::Duration};
+#[cfg(not(any(target_os = "android", target_os = "linux")))]
+fn main() {
+    println!("This example only builds on Linux and Android");
+}
 
-const ONE_SEC: Duration = Duration::from_secs(1);
-const TEN_MS: Duration = Duration::from_secs(1);
-
-// --------------------------------------------------------------------------
-
+#[cfg(any(target_os = "android", target_os = "linux"))]
 fn main() -> hinix::Result<()> {
+    use hinix::eventfd::EventFd;
+    use std::{thread, time::Duration};
+
+    const ONE_SEC: Duration = Duration::from_secs(1);
+    const TEN_MS: Duration = Duration::from_secs(1);
+
     let evtfd = EventFd::new(0)?;
     println!("Got it as: {:?}", evtfd);
 
@@ -48,3 +52,5 @@ fn main() -> hinix::Result<()> {
     println!("Done");
     Ok(())
 }
+
+

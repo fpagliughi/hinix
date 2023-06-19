@@ -25,14 +25,14 @@
 // Note that the conditional compilation choices were lifted directly from
 // the nix crate for which OS each underlying, wrapped, type supports.
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
-pub mod eventfd;
-#[cfg(any(target_os = "android", target_os = "linux"))]
-pub use eventfd::*;
-
 /// Re-export nix for any apps that want to ensure the same version
 /// of the underlying library.
 pub use nix;
+
+pub mod pipe;
+
+#[cfg(any(target_os = "android", target_os = "linux"))]
+pub mod eventfd;
 
 #[cfg(any(
     target_os = "dragonfly",
@@ -41,13 +41,6 @@ pub use nix;
     target_os = "netbsd"
 ))]
 pub mod msgqueue;
-#[cfg(any(
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "linux",
-    target_os = "netbsd"
-))]
-pub use msgqueue::{MqAttr, MsgQueue};
 
 /// Hinix Result type
 /// This is simply a re-export of the nix Result type.

@@ -15,7 +15,7 @@
 //! processes ! (i.e. not parent/child), but here we use two threads in
 //! the same application, just as a demonstration of the
 
-use hinix::{MsgQueue, Result};
+use hinix::{msgqueue::MsgQueue, Result};
 use std::thread;
 
 /// The name of the message queue.

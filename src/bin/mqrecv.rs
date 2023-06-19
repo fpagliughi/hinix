@@ -13,7 +13,7 @@
 //! This CLI application can recv a message to a Posix message queue.
 
 use clap::{App, Arg};
-use hinix::{MsgQueue, Result};
+use hinix::{msgqueue::MsgQueue, Result};
 
 // App version is package version
 const VERSION: &str = env!("CARGO_PKG_VERSION");
