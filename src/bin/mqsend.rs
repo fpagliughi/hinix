@@ -34,65 +34,40 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
     target_os = "netbsd"
 ))]
 fn main() -> Result<()> {
-    use clap::{App, Arg};
+    use clap::{arg, value_parser, ArgAction};
     use hinix::msgqueue::MsgQueue;
 
-    let opts = App::new("mqsend")
+    let opts = clap::Command::new("mqsend")
         .version(VERSION)
         .about("Send messages to a Posix Message Queue")
+        .arg(arg!(-c --create "Whether to try to create the queue").action(ArgAction::SetTrue))
         .arg(
-            Arg::with_name("create")
-                .help("Whether to try to create the queue")
-                .short("c")
-                .long("create"),
+            arg!(-n --nmsg <n> "The number of messages the queue can hold")
+                .required(false)
+                .value_parser(value_parser!(usize)),
         )
         .arg(
-            Arg::with_name("nmsg")
-                .help("The number of messages the queue can hold")
-                .short("n")
-                .long("nmsg")
-                .takes_value(true),
+            arg!(-s --maxsz <sz> "The maximum size of each messages")
+                .required(false)
+                .value_parser(value_parser!(usize)),
         )
-        .arg(
-            Arg::with_name("maxsz")
-                .help("The maximum size of each messages")
-                .short("s")
-                .long("maxsz")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("name")
-                .help("Name of the message queue")
-                .required(true)
-                .index(1),
-        )
-        .arg(
-            Arg::with_name("msg")
-                .help("The message to send to the queue")
-                .required(true)
-                .index(2),
-        )
+        .arg(arg!(<name> "Name of the message queue"))
+        .arg(arg!(<msg> "The message to send to the queue"))
         .get_matches();
 
-    let mut name = opts.value_of("name").unwrap().to_string();
+    let mut name = opts.get_one::<String>("name").unwrap().to_owned();
 
     if cfg!(target_os = "linux") && !name.starts_with("/") {
         name = format!("/{}", name);
     }
 
-    let msg = opts.value_of("msg").unwrap();
+    let msg = opts.get_one::<String>("msg").unwrap();
 
     // Create the queue if it doesn't already exist.
     let mq = if opts.is_present("create") {
-        let n = opts
-            .value_of("nmsg")
-            .and_then(|s| s.parse::<usize>().ok())
-            .unwrap_or(N_MSG);
+        let n = *opts.get_one::<usize>("nmsg").unwrap_or(&N_MSG);
 
-        let sz = opts
-            .value_of("maxsz")
-            .and_then(|s| s.parse::<usize>().ok())
-            .unwrap_or(MAX_SZ);
+        let sz = *opts.get_one::<usize>("maxsz").unwrap_or(&MAX_SZ);
 
         MsgQueue::create(&name, n, sz)
     }
@@ -101,7 +76,7 @@ fn main() -> Result<()> {
     }?;
 
     // Send the message
-    mq.send(msg.as_bytes())?;
+    mq.send(msg)?;
 
     Ok(())
 }

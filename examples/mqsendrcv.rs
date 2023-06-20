@@ -47,11 +47,9 @@ fn rx_thr() -> Result<()> {
     println!("Started receiver");
 
     let mq = MsgQueue::open(NAME)?;
-    let mut buf: [u8; MAX_SZ] = [0; MAX_SZ];
 
     loop {
-        let n = mq.receive(&mut buf)?;
-        let s = String::from_utf8_lossy(&buf[0..n]);
+        let s = mq.receive_string()?;
 
         if s == "quit" {
             break;
@@ -78,10 +76,13 @@ fn main() -> Result<()> {
     // Start a receiver thread
     let thr = std::thread::spawn(rx_thr);
 
+    println!("Sending messages");
+
     // Send a couple messages
-    mq.send(b"Hello!")?;
-    mq.send(b"Nice to see you!")?;
-    mq.send(b"quit")?;
+    mq.send("Hello!")?;
+    mq.send("Nice to see you!")?;
+
+    mq.send("quit")?;   // The receiver will exit on this
 
     // Wait for the thread to exit
     if let Err(err) = thr.join() {

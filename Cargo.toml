@@ -18,7 +18,7 @@ utils = ["clap"]
 [dependencies]
 nix = "0.26"
 libc = "0.2"
-clap = { version = "2.34", optional = true }
+clap = { version = "3.2", optional = true }
 
 [[bin]]
 name = "mqrecv"

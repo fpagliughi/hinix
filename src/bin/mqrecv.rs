@@ -23,24 +23,19 @@ use hinix::Result;
     target_os = "netbsd"
 ))]
 fn main() -> Result<()> {
-    use clap::{App, Arg};
-    use hinix::{msgqueue::MsgQueue, Result};
+    use clap::arg;
+    use hinix::msgqueue::MsgQueue;
 
     // App version is package version
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    let opts = App::new("mqrecv")
+    let opts = clap::Command::new("mqrecv")
         .version(VERSION)
         .about("Receive messages from a Posix Message Queue")
-        .arg(
-            Arg::with_name("name")
-                .help("Name of the message queue")
-                .required(true)
-                .index(1),
-        )
+        .arg(arg!(<name> "Name of the message queue"))
         .get_matches();
 
-    let mut name = opts.value_of("name").unwrap().to_string();
+    let mut name = opts.get_one::<String>("name").unwrap().to_owned();
 
     if cfg!(target_os = "linux") && !name.starts_with("/") {
         name = format!("/{}", name);
