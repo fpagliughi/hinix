@@ -31,11 +31,11 @@ use std::{
 };
 
 /// Creates a pipe.
-pub fn pipe() -> Result<(ReadPipe, WritePipe)> {
+pub fn pipe() -> Result<(WritePipe, ReadPipe)> {
     let (rd_fd, wr_fd) = unistd::pipe()?;
     let rd_pipe = unsafe { ReadPipe::from_raw_fd(rd_fd) };
     let wr_pipe = unsafe { WritePipe::from_raw_fd(wr_fd) };
-    Ok((rd_pipe, wr_pipe))
+    Ok((wr_pipe, rd_pipe))
 }
 
 /// Read-end of a pipe.
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_pipe() {
-        let (mut rd_pipe, mut wr_pipe) = pipe().unwrap();
+        let (mut wr_pipe, mut rd_pipe) = pipe().unwrap();
 
         thread::spawn(move || {
             wr_pipe.write(&[0x55u8]).unwrap();
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_eof_on_drop() {
-        let (mut rd_pipe, wr_pipe) = pipe().unwrap();
+        let (wr_pipe, mut rd_pipe) = pipe().unwrap();
 
         thread::spawn(move || {
             drop(wr_pipe);

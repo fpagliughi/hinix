@@ -1,5 +1,15 @@
 # Change Log for _hinix_
 
+## Version 0.3.0 - 2023-06-20
+
+[Change Set](https://github.com/fpagliughi/hinix/compare/v0.2.1..v0.3.0)
+
+- Added anonymous/unnamed pipes
+- No longer re-exporting sub-modules
+- Added conditional compilation; now builds on _macOS_.
+- `MsgQueue` can send/receive strings
+- Improved documentation
+
 ## Version 0.2.1 - 2023-06-18
 
 [Change Set](https://github.com/fpagliughi/hinix/compare/v0.2.0..v0.2.1)
