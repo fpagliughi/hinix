@@ -70,6 +70,8 @@ fn rx_thr() -> Result<()> {
     target_os = "netbsd"
 ))]
 fn main() -> Result<()> {
+    use hinix::msgqueue::MsgQueue;
+
     // Create the queue if it doesn't already exist.
     let mq = MsgQueue::create(NAME, N_MSG, MAX_SZ)?;
 
