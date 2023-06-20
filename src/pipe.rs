@@ -111,7 +111,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pipe_eof_on_drop() {
+    fn test_eof_on_drop() {
         let (mut rd_pipe, wr_pipe) = pipe().unwrap();
 
         thread::spawn(move || {

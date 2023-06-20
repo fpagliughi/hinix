@@ -16,7 +16,7 @@
 //! <https://man7.org/linux/man-pages/man7/mq_overview.7.html>
 //!
 
-use crate::Result;
+use crate::{Error, Result};
 use nix::{
     self,
     errno::Errno,
@@ -24,7 +24,6 @@ use nix::{
     sys::stat::Mode,
 };
 use std::ffi::CString;
-//use std::os::unix::io::{AsRawFd, RawFd};
 
 /// Export the MqAttr struct from the nix crate.
 pub use nix::mqueue::MqAttr;
@@ -171,14 +170,20 @@ impl MsgQueue {
     }
 
     /// Sends a message to the queue with the default priority
-    pub fn send(&self, msg: &[u8]) -> Result<()> {
-        self.send_with_priority(msg, DEFAULT_PRIO)
+    pub fn send<M>(&self, msg: M) -> Result<()>
+    where
+        M: AsRef<[u8]>,
+    {
+        self.send_with_priority(msg.as_ref(), DEFAULT_PRIO)
     }
 
     /// Sends a message to the queue
-    pub fn send_with_priority(&self, msg: &[u8], prio: u32) -> Result<()> {
+    pub fn send_with_priority<M>(&self, msg: M, prio: u32) -> Result<()>
+    where
+        M: AsRef<[u8]>,
+    {
         match self.mq {
-            Some(ref mq) => mqueue::mq_send(mq, msg, prio),
+            Some(ref mq) => mqueue::mq_send(mq, msg.as_ref(), prio),
             None => Err(Errno::ENOENT),
         }
     }
@@ -196,6 +201,13 @@ impl MsgQueue {
         let n = self.receive_with_priority(&mut buf, &mut prio)?;
         buf.truncate(n);
         Ok(buf)
+    }
+
+    /// Receives a message as a UTF-8 string
+    pub fn receive_string(&self) -> Result<String> {
+        let v = self.receive_bytes()?;
+        let s = String::from_utf8(v).map_err(|_| Error::EINVAL)?;
+        Ok(s)
     }
 
     /// Receives a message from the queue with priority
@@ -285,5 +297,25 @@ mod tests {
         let n = mq.receive(&mut rd_arr).unwrap();
         assert_eq!(n, SZ);
         assert_eq!(rd_arr, wr_arr);
+    }
+
+    #[test]
+    fn test_read_write_string() {
+        const NAME: &str = "/rust_str_unit_test";
+
+        let mq = MsgQueue::create(NAME, N, SZ).unwrap();
+
+        // Clear out existing messages
+        // (Maybe better to unlink/rm old queue before starting
+        while mq.get_attr().unwrap().curmsgs() != 0 {
+            let mut rd_arr = [0u8; SZ];
+            mq.receive(&mut rd_arr).unwrap();
+        }
+
+        const MSG: &str = "Hello, world!";
+        mq.send(MSG).unwrap();
+
+        let msg = mq.receive_string().unwrap();
+        assert_eq!(MSG.to_string(), msg);
     }
 }
