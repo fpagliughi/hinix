@@ -52,5 +52,3 @@ fn main() -> hinix::Result<()> {
     println!("Done");
     Ok(())
 }
-
-

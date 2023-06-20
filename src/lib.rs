@@ -22,6 +22,15 @@
 //!   [clap](https://docs.rs/clap/latest/clap/)
 //!
 
+// Lints
+#![deny(
+    missing_docs,
+    missing_copy_implementations,
+    unstable_features,
+    unused_import_braces,
+    unused_qualifications
+)]
+
 // Note that the conditional compilation choices were lifted directly from
 // the nix crate for which OS each underlying, wrapped, type supports.
 

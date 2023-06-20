@@ -67,7 +67,6 @@ impl AsRawFd for ReadPipe {
     }
 }
 
-
 /// Write-end of a pipe.
 pub struct WritePipe(OwnedFd);
 

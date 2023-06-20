@@ -116,4 +116,3 @@ fn main() -> Result<()> {
     println!("POSIX message queues not supported on this OS");
     Ok(())
 }
-

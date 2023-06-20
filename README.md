@@ -37,7 +37,7 @@ Note that in Linux, queue names must start with a forward slash and must not con
 
 ### Event Notification: `EventFd`
 
-A system for event notifications via the file system. This is a wait and notify system that can send events between user-space applications absed around a 64-bit integer counter. Depending on the flags used to create the object, it can act to pass values between the apps, or it can act like a semaphore where a write increments the value, a read decrements it, and the reader blocks when the value is zero.
+A system for event notifications via the file system. This is a wait and notify system that can send events between user-space applications based around a 64-bit integer counter. Depending on the flags used to create the object, it can act to pass values between the apps, or it can act like a semaphore where a write increments the value, a read decrements it, and the reader blocks when the value is zero.
 
 See [eventfd](https://man7.org/linux/man-pages/man2/eventfd.2.html) man page.
 
@@ -45,3 +45,24 @@ A useful aspect of the event notification system is that it is based around file
 
     let evt = EventFd::new(0)?;
     evt.write(42)?;
+    
+### Unnamed Pipes: `WritePipe` and `ReadPipe`
+
+A pipe is a unidirectional data channel that can be used for interprocess communication. A call to the system pipe() function creates a pipe and returns two separate file handles  - one for the read end of the pipe, and the other for the write end. It is similar to a Rust _channel_ except that:
+
+- It can cross process boundaries
+- It is a byte stream
+
+See [pipe](https://man7.org/linux/man-pages/man2/pipe.2.html) man page.
+
+It is typically used to allow a parent and child process to communicate after a fork, or for communicating within a single process when mixed with other handle-based communications (sockets, etc) combined with a poll/epoll/select.
+
+    let (mut wr, mut rd) = pipe().unwrap();
+
+    thread::spawn(move || {
+        wr.write(&[0x55u8]).unwrap();
+    });
+
+    let mut buf = [0u8; 1];
+    rd.read(&mut buf)?;
+    assert_eq!(0x55, buf[0]);
