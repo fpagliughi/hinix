@@ -10,7 +10,7 @@
 // to those terms.
 //
 
-//! Module to manage Posix Message Queues
+//! Posix Message Queues.
 //!
 //! See:
 //! <https://man7.org/linux/man-pages/man7/mq_overview.7.html>

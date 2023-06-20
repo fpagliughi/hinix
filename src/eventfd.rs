@@ -10,7 +10,7 @@
 // to those terms.
 //
 
-//! Module to manage Linux event objects.
+//! Linux event (eventfd) objects.
 //!
 //! See:
 //! <https://man7.org/linux/man-pages/man2/eventfd.2.html>

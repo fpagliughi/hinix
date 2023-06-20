@@ -10,6 +10,19 @@
 // to those terms.
 //
 
+//! Pipes.
+//!
+//! A pipe is aa unidirectional data channel that can be used for
+//! interprocess communication. A call to the system pipe() function
+//! creates a pipe and returns two separate file handles  - one for
+//! the read end of the pipe, and the other for the write end. If the
+//! write end of the pipe is closed, any in-progress or subsequent read
+//! will return immediately with an EOF (successful read of zero bytes).
+//!
+//! See:
+//! <https://man7.org/linux/man-pages/man2/pipe.2.html>
+//!
+
 use crate::Result;
 use nix::unistd;
 use std::{
