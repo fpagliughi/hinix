@@ -15,8 +15,9 @@
 //! processes ! (i.e. not parent/child), but here we use two threads in
 //! the same application, just as a demonstration of the
 
-use hinix::{msgqueue::MsgQueue, Result};
-use std::thread;
+#![allow(dead_code)]
+
+use hinix::Result;
 
 /// The name of the message queue.
 /// In Linux it must start with a forward slash, '/', and then have no
@@ -34,7 +35,15 @@ const MAX_SZ: usize = 512;
 // by using the same name, assuming that it has the proper permissions.
 // Here we assume that the main thread already created the queue.
 
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+))]
 fn rx_thr() -> Result<()> {
+    use hinix::msgqueue::MsgQueue;
+
     println!("Started receiver");
 
     let mq = MsgQueue::open(NAME)?;
@@ -54,12 +63,18 @@ fn rx_thr() -> Result<()> {
 
 // --------------------------------------------------------------------------
 
-fn main() -> hinix::Result<()> {
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+))]
+fn main() -> Result<()> {
     // Create the queue if it doesn't already exist.
     let mq = MsgQueue::create(NAME, N_MSG, MAX_SZ)?;
 
     // Start a receiver thread
-    let thr = thread::spawn(rx_thr);
+    let thr = std::thread::spawn(rx_thr);
 
     // Send a couple messages
     mq.send(b"Hello!")?;
@@ -74,3 +89,15 @@ fn main() -> hinix::Result<()> {
     println!("Done");
     Ok(())
 }
+
+#[cfg(not(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+)))]
+fn main() -> Result<()> {
+    println!("POSIX message queues not supported on this OS");
+    Ok(())
+}
+

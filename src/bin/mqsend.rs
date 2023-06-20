@@ -2,7 +2,7 @@
 //
 // This utility application is part of the Rust 'hinix' package.
 //
-// Copyright (c) 2021, Frank Pagliughi
+// Copyright (c) 2021-2023, Frank Pagliughi
 //
 // Licensed under the MIT license:
 //   <LICENSE or http://opensource.org/licenses/MIT>
@@ -12,8 +12,9 @@
 
 //! This CLI application can send a message to a Posix message queue.
 
-use clap::{App, Arg};
-use hinix::{msgqueue::MsgQueue, Result};
+#![allow(dead_code)]
+
+use hinix::Result;
 
 /// The number of messages the queue can hold.
 const N_MSG: usize = 4;
@@ -26,7 +27,16 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // --------------------------------------------------------------------------
 
+#[cfg(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+))]
 fn main() -> Result<()> {
+    use clap::{App, Arg};
+    use hinix::msgqueue::MsgQueue;
+
     let opts = App::new("mqsend")
         .version(VERSION)
         .about("Send messages to a Posix Message Queue")
@@ -95,3 +105,15 @@ fn main() -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(not(any(
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "linux",
+    target_os = "netbsd"
+)))]
+fn main() -> Result<()> {
+    println!("POSIX message queues not supported on this OS");
+    Ok(())
+}
+
